@@ -46,7 +46,7 @@ export function useQuery<T>(queryCacheOptions?: QueryCacheOptions): [
 		data: T | undefined;
 		loading: boolean;
 		error: unknown;
-		refetch: (args: QueryArgs, key: string) => Promise<void>;
+		refetch: (args: QueryArgs, key: string) => Promise<T | void>;
 		invalidate(): void;
 	}
 ] {
@@ -118,7 +118,9 @@ export function useQuery<T>(queryCacheOptions?: QueryCacheOptions): [
 		try {
 			if (!globalArgs?.current || !invalidate()) return;
 
-			await query(globalArgs.current);
+			const data = await query(globalArgs.current);
+
+			return data;
 		} catch (error) {
 			console.error(error);
 		}
