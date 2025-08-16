@@ -6,7 +6,6 @@ import {
 	ReactNode,
 	SetStateAction,
 	useContext,
-	useEffect,
 	useRef,
 	useState,
 } from "react";
