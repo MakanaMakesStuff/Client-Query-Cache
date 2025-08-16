@@ -45,6 +45,49 @@ const [usersQuery, { data, loading, error }] = useQuery<{
 });
 ```
 
+## Refetching Queries
+
+Refetching queries will invalidate client cache and query fresh data:
+> **Note:** This method will first ``invalidate`` the cache and then re-call the query
+
+```tsx
+const [eventsQuery, { refetch }] = useQuery<{
+  events: Events[];
+}>({
+  cacheKey: CacheKeys.Events
+});
+
+async function someEventLogic() {
+  try {
+    // Your event code...
+    await refetch()
+  } catch(error) {
+    console.error("Failed to refetch events query:", error)
+  }
+}
+```
+
+## Invalidating Cache
+
+Invalidating cache will remove it's key from the storage object and subsequent queries will be over the network:
+> **Note:** In my example I invalidate the cache after logout to prevent the client data from persisting
+
+```tsx
+const [usersQuery, { invalidate }] = useQuery<{
+  users: User[];
+}>();
+
+async function useLogout() {
+  try {
+    // Expire your auth tokens or handle auth code
+
+    invalidate()
+  } catch(error) {
+    console.error("Failed to log out user:", error)
+  }
+}
+```
+
 ## Using Enums for Cache Keys (Recommended)
 
 For larger projects, managing cache keys with enums can reduce typos and improve consistency:
