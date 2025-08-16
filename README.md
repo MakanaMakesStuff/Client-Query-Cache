@@ -70,7 +70,7 @@ async function someEventLogic() {
 ## Invalidating Cache
 
 Invalidating cache will remove it's key from the storage object and subsequent queries will be over the network:
-> **Note:** In my example I invalidate the cache after logout to prevent the client data from persisting
+> **Note:** I invalidate the cache after logout to prevent the user from persisting
 
 ```tsx
 const [userQuery, { invalidate }] = useQuery<{
