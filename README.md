@@ -1,4 +1,4 @@
-# Client-Query-Cache
+# ClientQueryCache
 
 A simple client-side caching solution for queries.
 
