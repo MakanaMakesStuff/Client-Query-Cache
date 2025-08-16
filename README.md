@@ -73,8 +73,8 @@ Invalidating cache will remove it's key from the storage object and subsequent q
 > **Note:** In my example I invalidate the cache after logout to prevent the client data from persisting
 
 ```tsx
-const [usersQuery, { invalidate }] = useQuery<{
-  users: User[];
+const [userQuery, { invalidate }] = useQuery<{
+  user: User;
 }>();
 
 async function useLogout() {
