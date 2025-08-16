@@ -1,5 +1,5 @@
 # Client-Query-Cache
-Client side query cache with expiration
+Client side caching
 
 ```tsx
 import { useQuery } from "@/ClientQueryCache.tsx";
