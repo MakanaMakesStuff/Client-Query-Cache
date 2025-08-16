@@ -7,6 +7,7 @@ import {
 	SetStateAction,
 	useContext,
 	useEffect,
+	useRef,
 	useState,
 } from "react";
 
@@ -14,37 +15,62 @@ const QueryCacheContext = createContext<QueryCacheContextProps | undefined>(
 	undefined
 );
 
-interface QueryArgs {
+export interface QueryArgs {
 	url: string;
 	options?: RequestInit;
 }
 
-interface QueryCacheContextProps {
+export interface QueryCacheContextProps {
 	cache: Map<string, unknown>;
 	setCache: Dispatch<SetStateAction<Map<string, unknown>>>;
 }
 
-export function useQuery<T>(
-	cacheKey = "local_query_cache",
-	expiration = 300
-): [
+export interface QueryCacheOptions {
+	/** The localStorage key to use for caching queries. Defaults to "client_query_cache". */
+	cacheKey?: string;
+	/** Expiration time for cached entries in seconds. Defaults to 300. */
+	expiration?: number;
+}
+
+/**
+ * Hook to access a query cache instance with optional configuration.
+ *
+ * @template T The expected type of the query data.
+ * @param {Object} [queryCacheOptions] Optional configuration object.
+ * @param {string} [queryCacheOptions.cacheKey] The localStorage key to use for caching queries. Defaults to `"client_query_cache"`.
+ * @param {number} [queryCacheOptions.expiration] Expiration time for cached entries in seconds. Defaults to `300`.
+ * @returns {QueryCacheContextProps} Returns the query cache context with reactive cache and query functions.
+ */
+export function useQuery<T>(queryCacheOptions?: QueryCacheOptions): [
 	(args: QueryArgs) => Promise<T | undefined>,
-	{ data: T | undefined; loading: boolean; error: unknown }
+	{
+		data: T | undefined;
+		loading: boolean;
+		error: unknown;
+		refetch: (args: QueryArgs, key: string) => Promise<void>;
+	}
 ] {
 	const [data, setData] = useState<T | undefined>(undefined);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<unknown>(undefined);
 	const { setCache } = useQueryCacheContext();
+	const globalArgs = useRef<QueryArgs | undefined>(undefined);
 
 	async function query(args: QueryArgs) {
 		try {
 			setLoading(true);
 
-			const key = `endpoint=${args.url}&method=${
-				args?.options?.method || "GET"
+			globalArgs.current = args;
+
+			const key = `endpoint=${globalArgs.current?.url}&method=${
+				globalArgs.current?.options?.method || "GET"
 			}`;
 
-			const cachedData = getStoredCache<T>(key, cacheKey, setCache);
+			const cachedData = getStoredCache<T>(
+				key,
+				queryCacheOptions?.cacheKey ?? "local_query_cache",
+				setCache
+			);
 
 			if (cachedData !== undefined) {
 				setData(cachedData);
@@ -69,8 +95,8 @@ export function useQuery<T>(
 			setStorageCache(
 				data as unknown as Record<string, unknown>,
 				key,
-				cacheKey,
-				expiration
+				queryCacheOptions?.cacheKey ?? "client_query_cache",
+				queryCacheOptions?.expiration ?? 1800
 			);
 
 			setCache((prev) => {
@@ -82,13 +108,45 @@ export function useQuery<T>(
 			return data;
 		} catch (error) {
 			setError(error);
-			console.error("useLazyQuery failed:", error);
+			console.error("useQuery failed:", error);
 		} finally {
 			setLoading(false);
 		}
 	}
 
-	return [query, { data, loading, error }];
+	async function refetch() {
+		try {
+			if (!globalArgs.current) return;
+
+			if (queryCacheOptions?.cacheKey) {
+				const storedCache = localStorage.getItem(queryCacheOptions.cacheKey);
+
+				if (storedCache) {
+					const parsed = new Map<string, unknown>(JSON.parse(storedCache));
+					const key = `endpoint=${globalArgs.current?.url}&method=${
+						globalArgs.current?.options?.method || "GET"
+					}`;
+					const value = [...parsed]?.find(([k]) => k.startsWith(key));
+					const keyParts = value?.[0]?.split("&expiration=");
+
+					const expirationTime = Number(keyParts?.[1]);
+
+					const removalKey = `${key}&expiration=${expirationTime}`;
+
+					removeStorageCache(
+						removalKey,
+						queryCacheOptions?.cacheKey ?? "client_query_cache"
+					);
+				}
+			}
+
+			await query(globalArgs.current);
+		} catch (error) {
+			console.error(error);
+		}
+	}
+
+	return [query, { data, loading, error, refetch }];
 }
 
 function getStoredCache<T>(
