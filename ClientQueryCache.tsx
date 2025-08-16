@@ -48,6 +48,7 @@ export function useQuery<T>(queryCacheOptions?: QueryCacheOptions): [
 		loading: boolean;
 		error: unknown;
 		refetch: (args: QueryArgs, key: string) => Promise<void>;
+		invalidate(): void;
 	}
 ] {
 	const [data, setData] = useState<T | undefined>(undefined);
@@ -116,6 +117,16 @@ export function useQuery<T>(queryCacheOptions?: QueryCacheOptions): [
 
 	async function refetch() {
 		try {
+			if (!globalArgs?.current || !invalidate()) return;
+
+			await query(globalArgs.current);
+		} catch (error) {
+			console.error(error);
+		}
+	}
+
+	function invalidate() {
+		try {
 			if (!globalArgs.current) return;
 
 			if (queryCacheOptions?.cacheKey) {
@@ -140,13 +151,13 @@ export function useQuery<T>(queryCacheOptions?: QueryCacheOptions): [
 				}
 			}
 
-			await query(globalArgs.current);
+			return true;
 		} catch (error) {
 			console.error(error);
 		}
 	}
 
-	return [query, { data, loading, error, refetch }];
+	return [query, { data, loading, error, refetch, invalidate }];
 }
 
 function getStoredCache<T>(
